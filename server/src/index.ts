@@ -13,6 +13,8 @@ import { __prod__ } from './constants';
 import { HelloResolver, PostResolver, UserResolver } from './resolvers';
 import { MyContext } from './utils/types';
 import { Post, User, Updoot } from './entities';
+import { createUserLoader } from './utils/createUserLoader';
+import { createUpdootLoader } from './utils/createUpdootLoader';
 
 const main = async () => {
   const conn = await createConnection({
@@ -63,6 +65,8 @@ const main = async () => {
       req: req as Request & { session: Express.Session },
       res,
       redis,
+      userLoader: createUserLoader(),
+      updootLoader: createUpdootLoader(),
     }),
   });
 

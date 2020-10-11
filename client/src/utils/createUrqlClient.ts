@@ -7,11 +7,12 @@ import {
 } from 'urql';
 import { pipe, tap } from 'wonka';
 import Router from 'next/router';
-import { cacheExchange, Resolver } from '@urql/exchange-graphcache';
+import { Cache, cacheExchange, Resolver } from '@urql/exchange-graphcache';
 import gql from 'graphql-tag';
 
 import { VoteMutationVariables } from '../generated/graphql';
 import { isServer } from './isServer';
+import { NextPageContext } from 'next';
 
 const errorExchange: Exchange = ({ forward }) => (ops$) => {
   return pipe(
@@ -63,13 +64,21 @@ export const cursorPagination = (): Resolver => {
   };
 };
 
+const invalidateAllPosts = (cache: Cache) => {
+  const allFields = cache.inspectFields('Query');
+  const fieldInfos = allFields.filter((info) => info.fieldName === 'posts');
+  fieldInfos.forEach((fi) => {
+    cache.invalidate('Query', 'posts', fi.arguments || {});
+  });
+};
+
 export const createUrqlClient = (
   ssrExchange: Exchange,
-  ctx: any,
+  ctx: NextPageContext | undefined,
 ): ClientOptions => {
   let cookie = '';
   if (isServer()) {
-    cookie = ctx?.req?.headers?.cookie;
+    if (ctx?.req?.headers?.cookie) cookie = ctx.req.headers.cookie;
   }
 
   return {
@@ -99,6 +108,18 @@ export const createUrqlClient = (
             //     cache.invalidate('Query', 'posts', fi.arguments || {});
             //   });
             // },
+            // deletePost: (_result, args, cache, info) => {
+            //   cache.invalidate({
+            //     __typename: 'Post',
+            //     id: (args as DeletePostMutationVariables).id,
+            //   });
+            // },
+            logout: (_result, _args, cache, _info) => {
+              invalidateAllPosts(cache);
+            },
+            login: (_result, _args, cache, _info) => {
+              invalidateAllPosts(cache);
+            },
             vote: (_result, args, cache, info) => {
               const { postId, value } = args as VoteMutationVariables;
               const data = cache.readFragment(

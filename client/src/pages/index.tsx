@@ -2,17 +2,28 @@ import React, { useState } from 'react';
 import { Box, Heading, Text, Link, Stack, Flex, Button } from '@chakra-ui/core';
 import { withUrqlClient } from 'next-urql';
 import NextLink from 'next/link';
+import { useRouter } from 'next/router';
 
-import { Layout, UpdootSection } from '../components';
-import { PostsQueryVariables, usePostsQuery } from '../generated/graphql';
+import { Layout, UpdootSection, EditDeletePostButtons } from '../components';
+import {
+  PostsQueryVariables,
+  useDeletePostMutation,
+  useMeQuery,
+  usePostsQuery,
+} from '../generated/graphql';
 import { createUrqlClient } from '../utils/createUrqlClient';
 
 const Index = () => {
+  const router = useRouter();
+
   const [variables, setVariables] = useState<PostsQueryVariables>({
     limit: 15,
     cursor: null,
   });
-  const [{ data, fetching }] = usePostsQuery({
+
+  const [{ data: meData }] = useMeQuery();
+
+  const [{ data, fetching }, refetch] = usePostsQuery({
     variables,
     requestPolicy: 'cache-and-network', // Invalidating the cache would be cheaper here. (See createUrqlClient.ts)
   });
@@ -23,21 +34,25 @@ const Index = () => {
 
   return (
     <Layout>
-      <Flex align="center">
-        <Heading>LiReddit</Heading>
-        <NextLink href="/create-post">
-          <Link ml="auto">Create Post</Link>
-        </NextLink>
-      </Flex>
-      <br />
-
       {!data && fetching ? null : (
         <Stack spacing={8}>
           {data!.posts.posts.map((p) => (
             <Flex key={p.id} p={5} shadow="md" borderWidth="1px">
               <UpdootSection post={p} />
-              <Box>
-                <Heading fontSize="xl">{p.title}</Heading>
+              <Box flex={1}>
+                <Flex alignItems="center">
+                  <NextLink href="post/[id]" as={`/post/${p.id}`}>
+                    <Link>
+                      <Heading fontSize="xl">{p.title}</Heading>
+                    </Link>
+                  </NextLink>
+                  <EditDeletePostButtons
+                    id={p.id}
+                    creatorId={p.creator.id}
+                    refetch
+                    refetchData={refetch}
+                  />
+                </Flex>
                 <Text>Posted by {p.creator.username}</Text>
                 <Text mt={4}>{p.textSnippet}</Text>
               </Box>
